@@ -2,7 +2,8 @@ import os
 import re
 import fnmatch
 from pathlib import Path
-from typing import List, Set, Optional, Tuple
+from typing import Iterable, List, Optional, Tuple, Set
+from prompt_toolkit.completion import PathCompleter, Completion
 
 
 class IgnoreHelper:
@@ -15,7 +16,7 @@ class IgnoreHelper:
 
     def __init__(self, ignore_file_path: Optional[str] = None, ignore_content: Optional[str] = None):
         """
-        Initialize the GitIgnoreHelper with patterns from a file or string content.
+        Initialize the IgnoreHelper with patterns from a file or string content.
 
         Args:
             ignore_file_path: Path to a gitignore file to parse
@@ -230,52 +231,128 @@ class IgnoreHelper:
     @classmethod
     def from_file(cls, ignore_file_path: str) -> 'IgnoreHelper':
         """
-        Create a GitIgnoreHelper from a gitignore file.
+        Create an IgnoreHelper from a gitignore file.
 
         Args:
             ignore_file_path: Path to a gitignore file
 
         Returns:
-            A new GitIgnoreHelper instance
+            A new IgnoreHelper instance
         """
         return cls(ignore_file_path=ignore_file_path)
 
     @classmethod
     def from_content(cls, content: str) -> 'IgnoreHelper':
         """
-        Create a GitIgnoreHelper from a string containing gitignore patterns.
+        Create an IgnoreHelper from a string containing gitignore patterns.
 
         Args:
             content: String containing gitignore patterns
 
         Returns:
-            A new GitIgnoreHelper instance
+            A new IgnoreHelper instance
         """
         return cls(ignore_content=content)
 
 
-# Example usage
-if __name__ == "__main__":
-    # Create a gitignore helper from a file
-    ignore_helper = IgnoreHelper.from_file(".gitignore")
+# For backward compatibility
+IgnoreHandler = IgnoreHelper
 
-    # Or create from a string with patterns
-    patterns = """
-    # Ignore all log files
-    *.log
-    # Ignore build directory
-    /build/
-    # But include special log files
-    !important.log
+
+class IgnoreAwarePathCompleter(PathCompleter):
     """
-    ignore_helper = IgnoreHelper.from_content(patterns)
+    Path completer that respects gitignore rules.
 
-    # Check if a file should be ignored
-    print(ignore_helper.is_ignored("test.log"))  # True
-    print(ignore_helper.is_ignored("build/output.txt"))  # True
-    print(ignore_helper.is_ignored("important.log"))  # False
+    This class extends the prompt_toolkit PathCompleter to filter out paths that
+    should be ignored according to gitignore patterns.
+    """
 
-    # Get all non-ignored files in a directory
-    files = ignore_helper.filter_paths("./my_project")
-    for file in files:
-        print(file)
+    def __init__(
+            self,
+            only_directories: bool = False,
+            expanduser: bool = False,
+            file_filter: Optional[callable] = None,
+            min_input_len: int = 0,
+            ignore_file_path: str = ".gitignore"
+    ):
+        """
+        Initialize the IgnoreAwarePathCompleter.
+
+        Args:
+            only_directories: Only show directories in completion.
+            expanduser: Expand the '~' character to the user's home directory.
+            file_filter: Optional callable that takes a filename and returns
+                         whether to include it in the completions.
+            min_input_len: Minimum input length before offering completions.
+            ignore_file_path: Path to the .gitignore file (default is ".gitignore").
+        """
+        super().__init__(
+            only_directories=only_directories,
+            expanduser=expanduser,
+            file_filter=file_filter,
+            min_input_len=min_input_len
+        )
+
+        # Initialize the IgnoreHelper
+        if os.path.exists(ignore_file_path):
+            self.ignore_handler = IgnoreHelper.from_file(ignore_file_path)
+        else:
+            # Create an empty ignore handler if no file exists
+            self.ignore_handler = IgnoreHelper.from_content("")
+
+    def get_completions(
+            self, document, complete_event
+    ) -> Iterable[Completion]:
+        """
+        Get completions for the given document.
+        Filter out paths that should be ignored according to gitignore patterns.
+
+        Args:
+            document: The Document instance for completion.
+            complete_event: The complete_event that triggered this completion.
+
+        Returns:
+            An iterable of Completion instances.
+        """
+        # Get all completions from the parent class
+        completions = list(super().get_completions(document, complete_event))
+
+        # Filter out ignored paths
+        filtered_completions = []
+        for completion in completions:
+            path = completion.text
+
+            # Determine if this is a directory
+            is_dir = path.endswith(os.sep)
+            full_path = os.path.normpath(path)
+
+            # Check if the path should be ignored
+            if not self.ignore_handler.is_ignored(full_path, is_dir):
+                filtered_completions.append(completion)
+
+        return filtered_completions
+
+    def get_paths(
+            self, directory: str, file_names: List[str]
+    ) -> Iterable[Tuple[str, bool]]:
+        """
+        Return a list of file paths and whether they're directories for each file name.
+
+        Args:
+            directory: The directory to look in.
+            file_names: The file names to expand.
+
+        Returns:
+            A list of (path, is_dir) tuples.
+        """
+        # Get all paths from the parent class
+        paths = list(super().get_paths(directory, file_names))
+
+        # Filter out ignored paths
+        filtered_paths = []
+        for path, is_dir in paths:
+            # Check if the path should be ignored
+            if not self.ignore_handler.is_ignored(path, is_dir):
+                filtered_paths.append((path, is_dir))
+
+        return filtered_paths

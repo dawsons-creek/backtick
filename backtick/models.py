@@ -1,6 +1,6 @@
 import os
-from backtick.utils import IgnoreHandler
 from swallow_framework import Model, state
+from backtick.ignore import IgnoreHelper
 
 
 class StagedFiles(Model):
@@ -8,16 +8,23 @@ class StagedFiles(Model):
 
     files = state([])  # Reactive property using `state`
 
-    def __init__(self):
+    def __init__(self, ignore_file_path=".backtickignore"):
         super().__init__()
         self.base_dir = os.getcwd()
-        self.ignore_handler = IgnoreHandler()
+
+        # Replace the old IgnoreHandler with our new IgnoreHelper
+        if os.path.exists(ignore_file_path):
+            self.ignore_handler = IgnoreHelper.from_file(ignore_file_path)
+        else:
+            # Create an empty ignore handler if no file exists
+            self.ignore_handler = IgnoreHelper.from_content("")
 
     def add_file(self, file_name: str):
         """Adds a file to the staged files list."""
         relative_path = os.path.relpath(file_name, self.base_dir)
 
-        if self.ignore_handler.should_ignore(relative_path):
+        # Use the new is_ignored method instead of should_ignore
+        if self.ignore_handler.is_ignored(relative_path):
             print(f"Skipping ignored file: {relative_path}")
             return
 
@@ -38,27 +45,26 @@ class StagedFiles(Model):
             print(f"Error: '{dir_name}' is not a directory.")
             return
 
-        all_files = []
-        for root, _, files in os.walk(absolute_dir_path):
-            for file in files:
-                file_path = os.path.join(root, file)
-                all_files.append(file_path)
+        # Use the filter_paths method from IgnoreHelper to get non-ignored files
+        all_files = self.ignore_handler.filter_paths(absolute_dir_path)
 
         if not all_files:
             print(f"No files found in directory '{dir_name}'.")
             return
 
+        # Filter files (exclude directories)
+        file_paths = [f for f in all_files if os.path.isfile(f)]
+
+        if not file_paths:
+            print(f"No files found in directory '{dir_name}' (only directories).")
+            return
+
         added_count = 0
-        skipped_count = 0
         new_files = []
 
         # Collect all new files first
-        for file_path in all_files:
+        for file_path in file_paths:
             relative_path = os.path.relpath(file_path, self.base_dir)
-            if self.ignore_handler.should_ignore(relative_path):
-                skipped_count += 1
-                continue
-
             if relative_path not in self.files:
                 new_files.append(relative_path)
                 added_count += 1
@@ -69,9 +75,16 @@ class StagedFiles(Model):
             for file_path in new_files:
                 self.files.append(file_path)
             self.files.end_batch_update()
+        else:
+            # If batch update not available, add files one by one
+            for file_path in new_files:
+                self.files.append(file_path)
+
+        total_files = len(file_paths)
+        skipped_count = total_files - added_count
 
         if skipped_count > 0:
-            print(f"Added {added_count} files from directory '{dir_name}' (skipped {skipped_count} ignored files).")
+            print(f"Added {added_count} files from directory '{dir_name}' (skipped {skipped_count} already staged files).")
         else:
             print(f"Added {added_count} files from directory '{dir_name}'.")
 
@@ -89,4 +102,3 @@ class StagedFiles(Model):
         """Clears all staged files."""
         self.files.clear()
         print("Cleared all staged files.")
-

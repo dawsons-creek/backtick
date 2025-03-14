@@ -33,7 +33,7 @@ from backtick.commands import (
 )
 from swallow_framework import EventDispatcher, Event, Context
 from backtick.models import StagedFiles
-from backtick.utils import IgnoreAwarePathCompleter
+from backtick.ignore import IgnoreAwarePathCompleter
 from backtick.views import TerminalView
 
 
