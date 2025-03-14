@@ -1,137 +1,124 @@
 # Backtick
 
-A command line tool that processes text by executing shell commands enclosed in backticks.
+A command-line tool that collects file contents and combines them into one long string on the clipboard. Perfect for sharing code snippets or documentation with others.
+
+## Features
+
+- Stage individual files or entire directories
+- Use glob patterns to add multiple files at once
+- Automatic filtering based on `.backtickignore` patterns (gitignore syntax)
+- Efficient memory usage with chunk-based file reading and LRU caching
+- Binary file detection to avoid binary content in the clipboard
+- Tab completion for file paths and commands
+- Concurrent processing for faster directory scanning
 
 ## Installation
 
-### Prerequisites
-
-- Python 3.12 or higher
-- Git (for installation from source)
-
-### Using uv (Recommended)
-
 ```bash
-# Create a virtual environment with Python 3.12
-uv venv --python=3.12
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# Install from PyPI
+pip install backtick
 
-# Install backtick
-uv pip install backtick
+# Or install directly from GitHub
+pip install git+https://github.com/rocket-tycoon/backtick.git
 ```
-
-### From Source
-
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/backtick.git
-cd backtick
-
-# Create a virtual environment with Python 3.12
-uv venv --python=3.12
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install in development mode
-uv pip install -e ".[dev]"
-```
-
-### Dependencies
-
-Backtick depends on:
-- click - Command line interface
-- rich - Rich terminal output
-- prompt-toolkit - Interactive shell functionality
-- pyperclip - Clipboard integration
-- swallow-framework - Additional functionality (optional)
 
 ## Usage
 
-### Basic Usage
+Run the `backtick` command to start the interactive shell:
 
 ```bash
-backtick run "Today's date is `date`"
+backtick
 ```
 
-Output:
-```
-Today's date is Wed Mar 12 14:30:45 UTC 2025
-```
+### Commands
 
-### Process a File
+- `<file_path>` - Add a file to the staged list
+- `<directory_path>` - Add all files in a directory (recursively)
+- `<glob_pattern>` - Add files matching a glob pattern (e.g., *.py)
+- `l` - List all staged files
+- `r <index>` - Remove a file by index
+- `c` - Clear all staged files
+- `h` - Show help message
+- `q` - Quit the program
+- `` ` `` - Copy all staged files to clipboard and quit
+
+### Example Workflow
 
 ```bash
-backtick run -f input.txt -o output.txt
+# Start backtick
+$ backtick
+
+# Add specific files
+backtick> app.py
+Added app.py to staged files.
+
+# Add a directory
+backtick> lib/
+Added 5 files from directory 'lib/'.
+
+# Add all Python files
+backtick> *.py
+Added 3 files matching '*.py'.
+
+# List staged files
+backtick> l
+
+Staged Files (9 total):
+1. app.py
+2. lib/utils.py
+3. lib/models.py
+4. lib/views.py
+5. lib/commands.py
+6. test_app.py
+7. README.md
+8. setup.py
+9. requirements.txt
+
+# Remove a file
+backtick> r 9
+File removed: requirements.txt
+
+# Copy to clipboard and exit
+backtick> `
+Formatting files for clipboard...
+Copying to clipboard...
+Copied 8 file(s) to clipboard.
 ```
 
-### Copy to Clipboard
+## Ignoring Files
 
-```bash
-backtick run -c "The current directory has `ls -la | wc -l` entries"
+Create a `.backtickignore` file in your project directory to specify files or patterns to ignore. This file uses the same syntax as `.gitignore`:
+
+```
+# Ignore all logs
+*.log
+
+# Ignore the venv directory
+venv/
+
+# Ignore all .pyc files
+*.pyc
+
+# Ignore specific files
+secrets.json
 ```
 
-### Verbose Mode
+## Performance Optimization
 
-To see error messages from failed commands:
+Backtick includes several optimizations for handling large codebases:
 
-```bash
-backtick run -v "The command `invalid-command` failed"
-```
+1. **Memory-efficient reading**: Files are read in chunks to avoid loading everything into memory at once
+2. **LRU caching**: Recently used files are cached, but the cache has a size limit
+3. **Binary file detection**: Binary files are automatically identified and excluded from text processing
+4. **Parallel processing**: Directory scanning uses multiple threads for better performance
+5. **Batch updates**: Changes to the file list are batched for better UI responsiveness
 
-### Interactive Shell
+## Configuration
 
-Start an interactive shell where you can type and evaluate commands on-the-fly:
+Backtick reads its configuration from the following files:
 
-```bash
-backtick shell
-```
-
-In the shell, you can use these special commands:
-- `:copy` - Copy the last result to clipboard
-- `:verbose` - Toggle verbose mode
-- `:clear` - Clear the screen
-- `:exit` - Exit the shell (or press Ctrl+D)
-
-### Todo Application
-
-Backtick includes a Todo application built with the Swallow Framework:
-
-```bash
-backtick todo
-```
-
-This launches an interactive Todo application with the following features:
-- Add, remove, and toggle completion of todo items
-- Filter between all items and active items only
-- View statistics about your todo list
-
-## Examples
-
-### Basic Text Processing
-
-```bash
-backtick run "There are `ls -1 | wc -l` files in the current directory."
-```
-
-### Multiple Commands
-
-```bash
-backtick run "System info: `uname -a`, with `free -h | grep Mem | awk '{print $3}'` memory used."
-```
-
-### Process Files
-
-Create a file template.txt:
-```
-Hostname: `hostname`
-Current user: `whoami`
-Date: `date`
-Uptime: `uptime`
-```
-
-Process it:
-```bash
-backtick run -f template.txt -o system_info.txt
-```
+- `.backtickignore` - Contains patterns for files to ignore
+- `~/.backtick_history` - Command history for the interactive shell
 
 ## Development
 
@@ -139,36 +126,42 @@ backtick run -f template.txt -o system_info.txt
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/backtick.git
+git clone https://github.com/rocket-tycoon/backtick.git
 cd backtick
 
-# Create and activate virtual environment with uv
-uv venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+# Create and activate a virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 
-# Install development dependencies
-uv pip install -e ".[dev]"
+# Install in development mode with development dependencies
+pip install -e ".[dev]"
 ```
 
-### Run Tests
+### Testing
 
 ```bash
+# Run tests
 pytest
-```
 
-### Code Formatting
+# Run tests with coverage
+pytest --cov=backtick
 
-```bash
+# Run linting
 black backtick tests
 isort backtick tests
-```
-
-### Type Checking
-
-```bash
 mypy backtick
 ```
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request

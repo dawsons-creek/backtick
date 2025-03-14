@@ -25,6 +25,8 @@ classifiers = [
 dependencies = [
     "prompt_toolkit",
     "pyperclip",
+    "pathspec",  # Added for better gitignore-style pattern handling
+    "cachetools",  # Added for LRU cache implementation
     "swallow-framework @ git+https://github.com/rocket-tycoon/swallow-framework.git@v1.0.2"
 ]
 
@@ -34,6 +36,7 @@ dependencies = [
 
 [project.scripts]
 backtick = "backtick.main:main"
+bt = "backtick.cli:main"
 
 [project.optional-dependencies]
 dev = [

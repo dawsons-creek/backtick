@@ -1,4 +1,6 @@
 .backtickignore
+output.txt
+z_test
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
