@@ -48,6 +48,10 @@ class StagedFiles(Model):
         """
         relative_path = os.path.relpath(file_name, self.base_dir)
 
+        if not os.path.exists(file_name):
+            print(f"Error: File '{file_name}' does not exist.")
+            return False
+
         # Check if the path should be ignored
         if self.ignore_handler.is_ignored(relative_path):
             print(f"Skipping ignored file: {relative_path}")
