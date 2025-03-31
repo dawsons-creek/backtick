@@ -27,12 +27,12 @@ dependencies = [
     "pyperclip",
     "pathspec",  # Added for better gitignore-style pattern handling
     "cachetools",  # Added for LRU cache implementation
-    "swallow-framework @ git+https://github.com/rocket-tycoon/swallow-framework.git@v1.0.2"
+    "swallow-framework @ git+https://github.com/dawsons-creek/swallow-framework.git@v1.0.2"
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/rocket-tycoon/backtick"
-"Bug Tracker" = "https://github.com/rocket-tycoon/backtick/issues"
+"Homepage" = "https://github.com/dawsons-creek/backtick"
+"Bug Tracker" = "https://github.com/dawsons-creek/backtick/issues"
 
 [project.scripts]
 backtick = "backtick.main:main"
