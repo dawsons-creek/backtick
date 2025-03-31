@@ -22,7 +22,7 @@ This package is installed directly from its GitHub repository.
 pip install git+https://github.com/dawsons-creek/backtick.git
 
 # Or, to install a specific version/tag (e.g., v0.1.0):
-# pip install git+https://github.com/dawsons-creek/backtick.git@v0.1.0
+pip install git+https://github.com/dawsons-creek/backtick.git@v0.1.0
 ```
 
 ## Usage
